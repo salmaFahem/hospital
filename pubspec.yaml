@@ -43,6 +43,8 @@ dependencies:
   provider: ^6.0.5
   firebase_database: ^10.2.0
   speech_to_text: ^6.1.1
+  flutter_local_notifications: ^15.1.0+1
+  firebase_messaging: ^14.6.6
 
 dev_dependencies:
   flutter_test:

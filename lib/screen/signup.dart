@@ -1,3 +1,6 @@
+import 'dart:collection';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
@@ -27,6 +30,14 @@ class _SignupState extends State<Signup> {
           email: emailController.text,
           password: passwordController.text,
         );
+        /*String id = FirebaseAuth.instance.currentUser!.uid;
+    final userDocRef = FirebaseFirestore.instance.collection("users").doc(id);
+    final user = <String, String>{
+          "id": id,
+          "email": emailController.text,
+          "role": "doctor",
+        };
+    await userDocRef.set(user);*/
       } else {
         passwordDontMatch();
       }

@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:hospital/pages/loginOrRegister.dart';
 import 'package:hospital/screen/signin.dart';
 
-import '../screen/fichePatient.dart';
+import '../screen/fichePatientDr.dart';
 
 class AuthPage extends  StatelessWidget {
   const AuthPage({Key? key}) : super(key: key);

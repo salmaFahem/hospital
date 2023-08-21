@@ -5,6 +5,7 @@ import 'dart:ui';
 import 'package:google_fonts/google_fonts.dart';
 import '../component/button.dart';
 import '../component/textfeild.dart';
+import 'listOfPatients.dart';
 
 class Login extends StatefulWidget {
   final Function()? onTap;
@@ -24,6 +25,12 @@ class _LoginState extends State<Login> {
       await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: emailController.text,
         password: passwordController.text,
+      );
+
+      // Navigate to the ListOfPatients screen after successful login
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => ListOfPatients()),
       );
     } on FirebaseAuthException catch (e) {
       if (e.code == 'user-not-found') {
