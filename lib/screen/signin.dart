@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
@@ -5,7 +6,9 @@ import 'dart:ui';
 import 'package:google_fonts/google_fonts.dart';
 import '../component/button.dart';
 import '../component/textfeild.dart';
+import 'ListOfPatientDr.dart';
 import 'listOfPatients.dart';
+import 'signup.dart';
 
 class Login extends StatefulWidget {
   final Function()? onTap;
@@ -22,16 +25,33 @@ class _LoginState extends State<Login> {
   //sign user in method
   void signUserIn() async {
     try {
-      await FirebaseAuth.instance.signInWithEmailAndPassword(
+      UserCredential userCredential = await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: emailController.text,
         password: passwordController.text,
       );
 
-      // Navigate to the ListOfPatients screen after successful login
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => ListOfPatients()),
-      );
+      // Get the user's UID
+      String uid = userCredential.user?.uid ?? '';
+
+      // Fetch the user data from Firestore or wherever you store it
+      DocumentSnapshot userSnapshot = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+
+      // Check if user data exists and if isAdmin is true
+      bool isAdmin = userSnapshot.exists && userSnapshot.get('isAdmin') == true;
+
+      if (isAdmin) {
+        // Navigate to the ListOfPatients screen if isAdmin is true
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => ListOfPatientDr()),
+        );
+      } else {
+        // Navigate to the ListOfPatientsDr screen if isAdmin is false
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => ListOfPatients()),
+        );
+      }
     } on FirebaseAuthException catch (e) {
       if (e.code == 'user-not-found') {
         wrongEmailMessage();
@@ -40,6 +60,7 @@ class _LoginState extends State<Login> {
       }
     }
   }
+
 
   void wrongEmailMessage() {
     showDialog(
@@ -120,14 +141,21 @@ class _LoginState extends State<Login> {
 
                   const SizedBox(height: 25),
                   GestureDetector(
-                    onTap: widget.onTap,
-                    child: const Text('Not a member? Register now',
-                    style: TextStyle(
-                      color: Colors.white54,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    onTap: () {
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(builder: (context) => Signup(onTap: () {  },)), // Navigate to the Signup screen
+                      );
+                    },
+                    child: const Text(
+                      'Not a member? Register now',
+                      style: TextStyle(
+                        color: Colors.white54,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   )
+
 
                 ],
               ),

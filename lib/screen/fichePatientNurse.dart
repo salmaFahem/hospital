@@ -2,13 +2,18 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:hospital/screen/signin.dart';
 import '../component/textfeild.dart';
+import '../main.dart';
 
 
 class FichePatientNurse extends StatefulWidget {
 
-  FichePatientNurse({Key? key}) : super(key: key);
+  final Map<String, dynamic> patientData; // Receive the patient data
+
+  FichePatientNurse({Key? key, required this.patientData}) : super(key: key);
+
 
   @override
   State<FichePatientNurse> createState() => _FichePatientNurseState();
@@ -16,14 +21,33 @@ class FichePatientNurse extends StatefulWidget {
 
 class _FichePatientNurseState extends State<FichePatientNurse> {
 
+
   String selectedDeviceOption = 'D1'; // Set an initial value
   final patientNameController = TextEditingController();
   final ageController = TextEditingController();
   final noteController = TextEditingController();
+  final cinController = TextEditingController();
 
 
-  createData() {
-    print("created");
+  createData(BuildContext context) async {
+    // Check if the cin already exists
+    QuerySnapshot<Map<String, dynamic>> cinQuery = await FirebaseFirestore.instance
+        .collection("MyPatients")
+        .where("cin", isEqualTo: cinController.text)
+        .get();
+
+    if (cinQuery.docs.isNotEmpty) {
+      // Cin value already exists, show a snackbar with an error message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("CIN value already exists."),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    // Cin value doesn't exist, proceed to create the patient
     DocumentReference documentReference = FirebaseFirestore.instance
         .collection("MyPatients")
         .doc(patientNameController.text);
@@ -31,7 +55,7 @@ class _FichePatientNurseState extends State<FichePatientNurse> {
     Map<String, dynamic> patients = {
       "patientName": patientNameController.text,
       "age": ageController.text,
-      "noteDr": noteController.text,
+      "cin": cinController.text,
       "deviceNumber": selectedDeviceOption,
     };
 
@@ -39,6 +63,7 @@ class _FichePatientNurseState extends State<FichePatientNurse> {
       print("${patientNameController.text} created");
     }).onError((e, _) => print("Error writing document: $e"));
   }
+
 
   void editData() {
     DocumentReference documentReference = FirebaseFirestore.instance
@@ -48,6 +73,7 @@ class _FichePatientNurseState extends State<FichePatientNurse> {
     Map<String, dynamic> updatedData = {
       "patientName": patientNameController.text,
       "age": ageController.text,
+      "cin": cinController.text,
       "deviceNumber": selectedDeviceOption,
     };
 
@@ -67,6 +93,7 @@ class _FichePatientNurseState extends State<FichePatientNurse> {
   }
 
   String retrievedDevice = "";
+
   void readData() {
     DocumentReference documentReference = FirebaseFirestore.instance
         .collection("MyPatients")
@@ -78,10 +105,15 @@ class _FichePatientNurseState extends State<FichePatientNurse> {
         if (data != null) {
           setState(() {
             // Update the controller values with retrieved data
+            cinController.text = data["cin"];
             patientNameController.text = data["patientName"];
             ageController.text = data["age"];
             retrievedDevice = data["deviceNumber"];
             selectedDeviceOption = retrievedDevice;
+            noteController.text = data["noteDr"] ?? ""; // Use empty string if note doesn't exist
+
+            // Update real-time values
+            updateRealTimeValues(selectedDeviceOption);
           });
         } else {
           print("Document data is null.");
@@ -91,6 +123,7 @@ class _FichePatientNurseState extends State<FichePatientNurse> {
       }
     });
   }
+
 
 
 
@@ -125,39 +158,49 @@ class _FichePatientNurseState extends State<FichePatientNurse> {
   String situation = "";
 
   @override
-  Widget build(BuildContext context) {
+  void initState() {
+    super.initState();
+    if (widget.patientData.isNotEmpty) { // Check if patient data is not empty
+      // Update the text fields with patient data
+      patientNameController.text = widget.patientData["patientName"] ?? "";
+      ageController.text = widget.patientData["age"] ?? "";
+      cinController.text = widget.patientData["cin"] ?? "";
+      selectedDeviceOption = widget.patientData["deviceNumber"] ?? "D1";
+      noteController.text = widget.patientData["noteDr"] ?? "";
+      updateRealTimeValues(selectedDeviceOption);
+    }
+  }
 
-    final DatabaseReference databaseRefCapTemp =
-    FirebaseDatabase.instance.ref().child(retrievedDevice).child('temperature');
-    databaseRefCapTemp.onValue.listen((event) {
+  void updateRealTimeValues(String deviceOption) {
+    DatabaseReference databaseRef = FirebaseDatabase.instance.ref().child(deviceOption);
+
+    databaseRef.child('temperature').onValue.listen((event) {
       setState(() {
         temp = event.snapshot.value.toString();
       });
     });
 
-    final DatabaseReference databaseRefCapHeart =
-    FirebaseDatabase.instance.ref().child(retrievedDevice).child('heart');
-    databaseRefCapHeart.onValue.listen((event) {
+    databaseRef.child('heart').onValue.listen((event) {
       setState(() {
         heartBeat = event.snapshot.value.toString();
       });
     });
 
-    final DatabaseReference databaseRefCapOxygen =
-    FirebaseDatabase.instance.ref().child(retrievedDevice).child('oxygen');
-    databaseRefCapOxygen.onValue.listen((event) {
+    databaseRef.child('oxygen').onValue.listen((event) {
       setState(() {
         oxygen = event.snapshot.value.toString();
       });
     });
 
-    final DatabaseReference databaseRefCapSituation =
-    FirebaseDatabase.instance.ref().child(retrievedDevice).child('situation');
-    databaseRefCapSituation.onValue.listen((event) {
+    databaseRef.child('situation').onValue.listen((event) {
       setState(() {
         situation = event.snapshot.value.toString();
       });
     });
+  }
+
+
+  Widget build(BuildContext context) {
 
     Color backgroundColor = Color(
         0xFF7E8BB9); //Convert the hexadecimal color value to a Color object
@@ -207,7 +250,7 @@ class _FichePatientNurseState extends State<FichePatientNurse> {
 
                                 IconButton(
                                   onPressed: () {
-                                    createData();
+                                    createData(context);
                                   },
                                   icon: Icon(Icons.add, color: Colors.white),
                                 ),
@@ -217,16 +260,23 @@ class _FichePatientNurseState extends State<FichePatientNurse> {
                                   onPressed: () {
                                     readData();
                                   },
-                                  icon: Icon(Icons.person, color: Colors.white),),
+                                  icon: Icon(Icons.search, color: Colors.white),),
 
                               ],
                             ),
 
+                            const SizedBox(height: 4),
+                            MyTextField(
+                              controller: cinController,
+                              hintText: 'CIN',
+                              obscureText: false,
+                              maxLines: 1,
+                            ),
 
-                            const SizedBox(height: 0),
+                            const SizedBox(height: 4),
                             MyTextField(
                               controller: patientNameController,
-                              hintText: 'Patient Name',
+                              hintText: 'Resident Nom',
                               obscureText: false,
                               maxLines: 1,
                             ),
@@ -238,11 +288,13 @@ class _FichePatientNurseState extends State<FichePatientNurse> {
                               maxLines: 1,
                             ),
 
+
                             DropdownButton<String>(
                               value: selectedDeviceOption,
                               onChanged: (newValue) {
                                 setState(() {
                                   selectedDeviceOption = newValue!;
+                                  updateRealTimeValues(selectedDeviceOption); // Update real-time values
                                 });
                               },
                               items: deviceOptions,
@@ -262,13 +314,20 @@ class _FichePatientNurseState extends State<FichePatientNurse> {
                                   },
                                   border: TableBorder.all(color: Colors.grey.shade200),
                                   children: [
-                                    _buildTableRow('Temperature ', '$temp' + '°C'),
-                                    _buildTableRow('Heart beat ',"$heartBeat" + " PBM"),
-                                    _buildTableRow('oxygen ',"$oxygen" + " %"),
-                                    _buildTableRow('situation ',"$situation" + " ")
+                                    _buildTableRow('Temperature', '$temp' + '°C'),
+                                    _buildTableRow('Heart beat', '$heartBeat' + ' BPM'),
+                                    _buildTableRow('Oxygen', '$oxygen' + ' %'),
+                                    _buildTableRow('Situation', '$situation'),
                                   ],
                                 ),
                               ),
+                            ),
+                            const SizedBox(height: 4),
+                            MyTextField(
+                              controller: noteController,
+                              hintText: 'Dr note..',
+                              obscureText: false,
+                              maxLines: null,
                             ),
                           ],
                         ),
@@ -281,7 +340,6 @@ class _FichePatientNurseState extends State<FichePatientNurse> {
     );
   }
 }
-
 TableRow _buildTableRow(String deviceName, String value) {
   return TableRow(
     children: [

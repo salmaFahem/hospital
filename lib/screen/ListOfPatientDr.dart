@@ -6,14 +6,14 @@ import 'package:hospital/screen/signin.dart';
 import 'fichePatientDr.dart';
 import 'fichePatientNurse.dart';
 
-class ListOfPatients extends StatefulWidget {
-  const ListOfPatients({Key? key}) : super(key: key);
+class ListOfPatientDr extends StatefulWidget {
+  const ListOfPatientDr({Key? key}) : super(key: key);
 
   @override
-  State<ListOfPatients> createState() => _ListOfPatientsState();
+  State<ListOfPatientDr> createState() => _ListOfPatientDrState();
 }
 
-class _ListOfPatientsState extends State<ListOfPatients> {
+class _ListOfPatientDrState extends State<ListOfPatientDr> {
   final patientNameController = TextEditingController();
   final ageController = TextEditingController();
   final noteController = TextEditingController();
@@ -45,13 +45,24 @@ class _ListOfPatientsState extends State<ListOfPatients> {
                   return ListView(
                     children: [
                       ListTile(
-                        leading: const Icon(Icons.accessible_outlined),
-                        title: Text("Nurse space"),
+                        leading: const Icon(Icons.account_circle_outlined),
+                        title: Text("Dr space"),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) =>
+                                FichePatient(patientData: {},)),
+                          );
+                        },
+                      ),
+                      ListTile(
+                        leading: const Icon(Icons.list),
+                        title: Text("List of users"),
                         onTap: () {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                                builder: (context) => FichePatientNurse(patientData: {},)),
+                                builder: (context) => const ListOfUsers()),
                           );
                         },
                       )
@@ -69,7 +80,7 @@ class _ListOfPatientsState extends State<ListOfPatients> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 4),
-               Padding(
+              Padding(
                 padding: EdgeInsets.all(8.0),
                 child: SingleChildScrollView(
                   child: Column(
@@ -138,8 +149,7 @@ class _ListOfPatientsState extends State<ListOfPatients> {
                       shrinkWrap: true,
                       itemCount: snapshot.data!.docs.length,
                       itemBuilder: (context, index) {
-                        DocumentSnapshot documentSnapshot =
-                        snapshot.data!.docs[index];
+                        DocumentSnapshot documentSnapshot = snapshot.data!.docs[index];
                         Map<String, dynamic>? data =
                         documentSnapshot.data() as Map<String, dynamic>?;
 
@@ -162,17 +172,18 @@ class _ListOfPatientsState extends State<ListOfPatients> {
 
 
                         return GestureDetector(
-                          onTap: () {
-                            if (data != null) {
-                              // Navigate to FichePatient and pass the data to pre-fill the fields
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(builder: (context) => FichePatientNurse(
-                                  patientData: data, // Pass the patient data
-                                )),
-                              );
-                            }
-                          },
+                            onTap: () {
+                              if (data != null) {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => FichePatient(
+                                      patientData: data, // Pass the patient data
+                                    ),
+                                  ),
+                                );
+                              }
+                            },
                         child: Row(
                           children: [
 
@@ -218,8 +229,7 @@ class _ListOfPatientsState extends State<ListOfPatients> {
                                   ),
                                 )),
                           ],
-                        ),
-                        );
+                        ));
                       },
                     );
                   } else {
@@ -237,4 +247,3 @@ class _ListOfPatientsState extends State<ListOfPatients> {
     );
   }
 }
-

@@ -1,61 +1,42 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
-import 'package:flutter/material.dart';
 import 'package:hospital/screen/signin.dart';
 import '../component/textfeild.dart';
 
 class FichePatient extends StatefulWidget {
-  FichePatient({Key? key}) : super(key: key);
+  final Map<String, dynamic> patientData; // Receive the patient data
+
+  FichePatient({Key? key, required this.patientData}) : super(key: key);
 
   @override
   State<FichePatient> createState() => _FichePatientState();
 }
 
 class _FichePatientState extends State<FichePatient> {
-
-  String selectedDeviceOption = 'D1'; // Set an initial value
-
-
+  String selectedDeviceOption = 'D1';
   final patientNameController = TextEditingController();
   final ageController = TextEditingController();
   final noteController = TextEditingController();
+  final cinController = TextEditingController();
 
 
-  createData() {
-    print("created");
+  editData() async {
     DocumentReference documentReference = FirebaseFirestore.instance
         .collection("MyPatients")
         .doc(patientNameController.text);
 
-    Map<String, dynamic> patients = {
-      "patientName": patientNameController.text,
-      "age": ageController.text,
+    Map<String, dynamic> updatedData = {
       "noteDr": noteController.text,
-      "deviceNumber": selectedDeviceOption,
     };
 
-    documentReference.set(patients).whenComplete(() {
-      print("${patientNameController.text} created");
-    }).onError((e, _) => print("Error writing document: $e"));
-  }
-
-  editData () {
-    print("edited");
-    DocumentReference documentReference = FirebaseFirestore.instance
-        .collection("MyPatients")
-        .doc(patientNameController.text);
-
-    Map<String, dynamic> patients = {
-      "patientName": patientNameController.text,
-      "age": ageController.text,
-      "noteDr": noteController.text,
-      "deviceNumber": selectedDeviceOption,
-    };
-
-    documentReference.set(patients).whenComplete(() {
-      print("${patientNameController.text} created");
-    }).onError((e, _) => print("Error writing document: $e"));
+    try {
+      await documentReference.update(updatedData);
+      print("${patientNameController.text}'s note updated");
+    } catch (error) {
+      print("Error updating note: $error");
+    }
   }
 
   deleteData () {
@@ -66,6 +47,7 @@ class _FichePatientState extends State<FichePatient> {
   }
 
   String retrievedDevice = ""; // Declare a variable to store the retrieved device
+
 
   void readData() {
     DocumentReference documentReference = FirebaseFirestore.instance
@@ -78,11 +60,15 @@ class _FichePatientState extends State<FichePatient> {
         if (data != null) {
           setState(() {
             // Update the controller values with retrieved data
+            cinController.text = data["cin"];
             patientNameController.text = data["patientName"];
             ageController.text = data["age"];
-            retrievedDevice = data["deviceNumber"]; // Store the retrieved age value
-            noteController.text = data["noteDr"];
+            retrievedDevice = data["deviceNumber"];
             selectedDeviceOption = retrievedDevice;
+            noteController.text = data["noteDr"] ?? ""; // Use empty string if note doesn't exist
+
+            // Update real-time values
+            updateRealTimeValues(selectedDeviceOption);
           });
         } else {
           print("Document data is null.");
@@ -92,6 +78,7 @@ class _FichePatientState extends State<FichePatient> {
       }
     });
   }
+
 
 
   void signUserOut() async {
@@ -119,44 +106,57 @@ class _FichePatientState extends State<FichePatient> {
 
 
 
+
   String temp = "";
   String heartBeat = "";
   String oxygen = "";
   String situation = "";
 
   @override
-  Widget build(BuildContext context) {
+  void initState() {
+    super.initState();
+    if (widget.patientData.isNotEmpty) { // Check if patient data is not empty
+      // Update the text fields with patient data
+      patientNameController.text = widget.patientData["patientName"] ?? "";
+      ageController.text = widget.patientData["age"] ?? "";
+      cinController.text = widget.patientData["cin"] ?? "";
+      selectedDeviceOption = widget.patientData["deviceNumber"] ?? "D1";
+      noteController.text = widget.patientData["noteDr"] ?? "";
+      updateRealTimeValues(selectedDeviceOption);
+    }
+  }
 
-    final DatabaseReference databaseRefCapTemp =
-    FirebaseDatabase.instance.ref().child(retrievedDevice).child('temperature');
-    databaseRefCapTemp.onValue.listen((event) {
+  void updateRealTimeValues(String deviceOption) {
+    DatabaseReference databaseRef = FirebaseDatabase.instance.ref().child(deviceOption);
+
+    databaseRef.child('temperature').onValue.listen((event) {
       setState(() {
         temp = event.snapshot.value.toString();
       });
     });
 
-    final DatabaseReference databaseRefCapHeart =
-    FirebaseDatabase.instance.ref().child(retrievedDevice).child('heart');
-    databaseRefCapHeart.onValue.listen((event) {
+    databaseRef.child('heart').onValue.listen((event) {
       setState(() {
         heartBeat = event.snapshot.value.toString();
       });
     });
 
-    final DatabaseReference databaseRefCapOxygen =
-    FirebaseDatabase.instance.ref().child(retrievedDevice).child('oxygen');
-    databaseRefCapOxygen.onValue.listen((event) {
+    databaseRef.child('oxygen').onValue.listen((event) {
       setState(() {
         oxygen = event.snapshot.value.toString();
       });
     });
-    final DatabaseReference databaseRefCapSituation =
-    FirebaseDatabase.instance.ref().child(retrievedDevice).child('situation');
-    databaseRefCapSituation.onValue.listen((event) {
+
+    databaseRef.child('situation').onValue.listen((event) {
       setState(() {
         situation = event.snapshot.value.toString();
       });
     });
+  }
+
+
+
+  Widget build(BuildContext context) {
 
     Color backgroundColor = Color(
         0xFF7E8BB9); //Convert the hexadecimal color value to a Color object
@@ -204,26 +204,28 @@ class _FichePatientState extends State<FichePatient> {
                               },
                               icon: Icon(Icons.delete, color: Colors.white),),
 
-                            IconButton(
-                              onPressed: () {
-                                createData();
-                              },
-                              icon: Icon(Icons.add, color: Colors.white),
-                            ),
 
                             IconButton(
                               onPressed: () {
                                 readData();
                               },
-                              icon: Icon(Icons.person, color: Colors.white),),
+                              icon: Icon(Icons.search, color: Colors.white),),
+
                             ],
                           ),
 
-
                             const SizedBox(height: 0),
                             MyTextField(
+                              controller: cinController,
+                              hintText: 'CIN',
+                              obscureText: false,
+                              maxLines: 1,
+                            ),
+
+                            const SizedBox(height: 4),
+                            MyTextField(
                               controller: patientNameController,
-                              hintText: ' Patient Name',
+                              hintText: ' Resident Nom',
                               obscureText: false,
                               maxLines: 1,
                             ),
@@ -240,11 +242,13 @@ class _FichePatientState extends State<FichePatient> {
                               onChanged: (newValue) {
                                 setState(() {
                                   selectedDeviceOption = newValue!;
+                                  updateRealTimeValues(selectedDeviceOption); // Update real-time values
                                 });
                               },
                               items: deviceOptions,
                               style: TextStyle(color: Colors.black), // Change text color
                             ),
+
 
                             const SizedBox(height: 10),
                             ClipRRect(
@@ -259,10 +263,10 @@ class _FichePatientState extends State<FichePatient> {
                                   },
                                   border: TableBorder.all(color: Colors.grey.shade200),
                                   children: [
-                                    _buildTableRow('Temperature ', '$temp' + '°C'),
-                                    _buildTableRow('Heart beat ',"$heartBeat" + " PBM"),
-                                    _buildTableRow('oxygen ',"$oxygen" + " %"),
-                                    _buildTableRow('situation ',"$situation" + " "),
+                                    _buildTableRow('Temperature', '$temp' + '°C'),
+                                    _buildTableRow('Heart beat', '$heartBeat' + ' BPM'),
+                                    _buildTableRow('Oxygen', '$oxygen' + ' %'),
+                                    _buildTableRow('Situation', '$situation'),
                                   ],
                                 ),
                               ),
