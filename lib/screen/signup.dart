@@ -25,7 +25,7 @@ class _SignupState extends State<Signup> {
   final passwordController = TextEditingController();
   final confirmPasswordController = TextEditingController();
   final fireBaseInstance = FirebaseAuth.instance;
-  //sign user in method
+
   Future<bool> signUserUp() async {
     try {
       if (passwordController.text == confirmPasswordController.text) {
